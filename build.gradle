@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.3'
     id 'io.spring.dependency-management' version '1.1.6'
+    id 'checkstyle'
 }
 
 group = 'com.spring-service'
@@ -17,6 +18,12 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+}
+
+checkstyle {
+    toolVersion = '8.35'
+    ignoreFailures = false
+    maxWarnings = 0
 }
 
 repositories {

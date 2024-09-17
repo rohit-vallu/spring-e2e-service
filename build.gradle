@@ -85,3 +85,4 @@ sonarqube {
         property "sonar.login", System.getenv("SONAR_TOKEN")
     }
 }
+

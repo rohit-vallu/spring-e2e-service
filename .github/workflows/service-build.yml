@@ -1,0 +1,69 @@
+name: Service Build
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '.github/**'
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+jobs:
+  gradle-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'adopt'
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle
+      - name: Build and generate Sonarqube report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build jacocoTestReport sonarqube --info
+      - name: Upload Checkstyle Main Report
+        if: always()  # Ensures the report is uploaded even if the build fails
+        uses: actions/upload-artifact@v3
+        with:
+          name: checkstyle-main-report
+          path: build/reports/checkstyle/main.html
+      - name: Upload Checkstyle Test Report
+        if: always()  # Ensures the report is uploaded even if the build fails
+        uses: actions/upload-artifact@v3
+        with:
+          name: checkstyle-test-report
+          path: build/reports/checkstyle/test.html
+      - name: Upload Test Reports
+        if: always()  # Ensures the reports are uploaded even if the build fails
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          path: build/reports/tests/
+      - name: Upload JaCoCo Report
+        if: always()  # Ensures the report is uploaded even if the build fails
+        uses: actions/upload-artifact@v3
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test/

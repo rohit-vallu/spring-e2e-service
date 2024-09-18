@@ -37,7 +37,7 @@ jobs:
           ARTIFACT_VERSION=$(./gradlew properties | grep "build_version" | awk '{print $2}')
           echo "ARTIFACT_VER=$ARTIFACT_VERSION" >> $GITHUB_OUTPUT
 
-      - uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@v2
         name: Configure AWS Credentials for publishing to ECR
         with:
           role-to-assume: arn:aws:iam::001736565489:role/e2e-spring-service-ecr-iam-role

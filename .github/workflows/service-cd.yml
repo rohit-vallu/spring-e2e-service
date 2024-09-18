@@ -1,0 +1,113 @@
+name: Service Deployment
+on:
+  pull_request:
+    types: [ closed ]
+    branches:
+      - develop
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  docker-image-build:
+    runs-on: ubuntu-latest
+    if: (github.event.pull_request.merged == true) && (github.base_ref == 'develop')
+    outputs:
+      REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      REPOSITORY: e2e-spring-service-ecr
+      IMAGE_TAG: ${{ github.sha }}
+      ECR_IMAGE: ${{ steps.image.outputs.ECR_IMAGE }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Java Corretto 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+
+      - name: Build the Application
+        run: ./gradlew clean build -x test --stacktrace
+
+      - name: Extract ARTIFACT_VERSION from gradle.properties
+        id: get_artifact_version
+        run: |
+          ARTIFACT_VERSION=$(./gradlew properties | grep "build_version" | awk '{print $2}')
+          echo "ARTIFACT_VER=$ARTIFACT_VERSION" >> $GITHUB_OUTPUT
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        name: Configure AWS Credentials for publishing to ECR
+        with:
+          role-to-assume: arn:aws:iam::001736565489:role/e2e-spring-service-ecr-iam-role
+          role-session-name: GithubActionsSession
+          role-duration-seconds: 3600
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        # This login happens via the IAM role provided.
+        # Temp credentials will be generated using the IAM, and amazon-ecr-login@v1 action uses these to login
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+      - name: Build, tag, and push docker image to Amazon ECR
+        id: image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: e2e-spring-service-ecr
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f Dev.Dockerfile --no-cache --build-arg ARTEFACT_VERSION=${{ steps.get_artifact_version.outputs.ARTIFACT_VER }} .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      - run: echo "${{ github.event.pull_request.merged }}, ${{ github.event_name }}, ${{ github.ref }}, ${{ github.base_ref }}"
+
+  dev-deployment:
+    needs: docker-image-build
+    runs-on: ubuntu-latest
+    env:
+      service_name: arn:aws:ecs:us-east-1:001736565489:service/e2e-spring-service-ecs-cluster/e2e-spring-service-ecs-service
+      cluster_name: arn:aws:ecs:us-east-1:001736565489:cluster/e2e-spring-service-ecs-cluster
+      CONTAINER_NAME: e2e-spring-service-container
+      account_id: "001736565489"
+
+      # Get current task definition version
+      # Pull current task definition JSON and remove unnecessary attributes with jq
+      # Then store it in local location (Github env) and assign to a git env variable
+      # Then get the new image tag from ECR step and replace the old image with new one in the task definition JSON file in local (Github env) and render(update) the task def.
+      #  Then deploy the new task definition.
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v1
+        name: Configure AWS Credentials to retrieve current task def from ECS
+        with:
+          role-to-assume: arn:aws:iam::001736565489:role/e2e-spring-github-actions-ecr-ecs-role
+          role-session-name: GithubActionsSession
+          role-duration-seconds: 3600
+          aws-region: us-east-1
+
+      - name: get task definition
+        run: |
+          #!/bin/bash
+          CURRENT_TASK_DEF=$(aws ecs describe-services --services "${{env.service_name}}" --cluster "${{env.cluster_name}}" --query "services[0].taskDefinition" | tr -d '"')
+          aws ecs describe-task-definition --task-definition "${CURRENT_TASK_DEF%:*}" --query taskDefinition | \
+          jq  'del(.taskDefinitionArn) | del(.revision) | del(.status) | del(.requiresAttributes) | del(.compatibilities) | del(.registeredAt) | del(.registeredBy)' > ./task-definition.json
+          echo "TASK_DEF_PATH=./task-definition.json" >> $GITHUB_ENV
+
+      - name: Fill in the new image ID in the Amazon ECS task definition (Update the task definition with new image)
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1.2.0
+        with:
+          task-definition: ${{ env.TASK_DEF_PATH }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: public.ecr.aws/${{needs.docker-image-build.outputs.REPOSITORY}}:${{ needs.docker-image-build.outputs.IMAGE_TAG }}
+
+      - name: Deploy the new task definition
+        id: update-ecs-task
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          cluster: ${{ env.cluster_name }}
+          service: ${{ env.service_name }}
+          task-definition: ${{ steps.task-def.outputs.task-definition }}

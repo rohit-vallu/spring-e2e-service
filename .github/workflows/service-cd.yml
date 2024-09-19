@@ -9,13 +9,12 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  account_id: "001736565489"
-
 jobs:
   docker-image-build:
     runs-on: ubuntu-latest
     if: (github.event.pull_request.merged == true) && (github.base_ref == 'develop')
+    env:
+      account_id: "001736565489"
     outputs:
       REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       REPOSITORY: e2e-spring-service-ecr
@@ -71,6 +70,7 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-latest
     env:
+      account_id: "001736565489"
       service_name: arn:aws:ecs:us-east-1:${{ env.account_id }}:service/e2e-spring-service-ecs-cluster/e2e-spring-service-ecs-service
       cluster_name: arn:aws:ecs:us-east-1:${{ env.account_id }}:cluster/e2e-spring-service-ecs-cluster
       CONTAINER_NAME: e2e-spring-service-container

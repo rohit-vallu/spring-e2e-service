@@ -11,4 +11,4 @@ COPY build/libs/spring-e2e-service-${ARTIFACT_VERSION}.jar /app/spring-e2e-servi
 
 EXPOSE 8090
 
-CMD ["java", "-jar", "/app/cb-bin-service.jar"]
+CMD ["java", "-jar", "/app/spring-e2e-service.jar"]

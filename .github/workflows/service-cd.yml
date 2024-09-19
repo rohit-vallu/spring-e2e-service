@@ -71,6 +71,7 @@ jobs:
       service_name: arn:aws:ecs:us-east-1:001736565489:service/e2e-spring-service-ecs-cluster/e2e-spring-service-ecs-service
       cluster_name: arn:aws:ecs:us-east-1:001736565489:cluster/e2e-spring-service-ecs-cluster
       CONTAINER_NAME: e2e-spring-service-container
+      public-ecr-alias: "j2y0k7t2"
 
       # Get current task definition version
       # Pull current task definition JSON and remove unnecessary attributes with jq
@@ -101,7 +102,7 @@ jobs:
         with:
           task-definition: ${{ env.TASK_DEF_PATH }}
           container-name: ${{ env.CONTAINER_NAME }}
-          image: public.ecr.aws/${{needs.docker-image-build.outputs.REPOSITORY}}:${{ needs.docker-image-build.outputs.IMAGE_TAG }}
+          image: public.ecr.aws/${{env.public-ecr-alias}}/${{needs.docker-image-build.outputs.REPOSITORY}}:${{ needs.docker-image-build.outputs.IMAGE_TAG }}
 
       - name: Deploy the new task definition
         id: update-ecs-task

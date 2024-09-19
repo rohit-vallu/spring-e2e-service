@@ -59,7 +59,7 @@ jobs:
           REPOSITORY: e2e-spring-service-ecr
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f Dev.Dockerfile --no-cache --build-arg ARTEFACT_VERSION=${{ steps.get_artifact_version.outputs.ARTIFACT_VER }} .
+          docker build -t $REGISTRY/001736565489/$REPOSITORY:$IMAGE_TAG -f Dev.Dockerfile --no-cache --build-arg ARTEFACT_VERSION=${{ steps.get_artifact_version.outputs.ARTIFACT_VER }} .
           docker push $REGISTRY/001736565489/$REPOSITORY:$IMAGE_TAG
 
       - run: echo "${{ github.event.pull_request.merged }}, ${{ github.event_name }}, ${{ github.ref }}, ${{ github.base_ref }}"

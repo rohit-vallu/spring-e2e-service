@@ -9,8 +9,8 @@ permissions:
   id-token: write
   contents: read
 
-  env:
-    account_id: "001736565489"
+env:
+  account_id: "001736565489"
 
 jobs:
   docker-image-build:

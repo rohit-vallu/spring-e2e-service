@@ -13,8 +13,6 @@ jobs:
   docker-image-build:
     runs-on: ubuntu-latest
     if: (github.event.pull_request.merged == true) && (github.base_ref == 'develop')
-    env:
-      account_id: "001736565489"
     outputs:
       REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       REPOSITORY: e2e-spring-service-ecr
@@ -42,7 +40,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v2
         name: Configure AWS Credentials for publishing to ECR
         with:
-          role-to-assume: arn:aws:iam::${{ env.account_id }}:role/e2e-spring-service-ecr-iam-role
+          role-to-assume: arn:aws:iam::001736565489:role/e2e-spring-service-ecr-iam-role
           role-session-name: GithubActionsSession
           role-duration-seconds: 3600
           aws-region: us-east-1
@@ -62,7 +60,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f Dev.Dockerfile --no-cache --build-arg ARTEFACT_VERSION=${{ steps.get_artifact_version.outputs.ARTIFACT_VER }} .
-          docker push $REGISTRY/${{ env.account_id }}/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/001736565489/$REPOSITORY:$IMAGE_TAG
 
       - run: echo "${{ github.event.pull_request.merged }}, ${{ github.event_name }}, ${{ github.ref }}, ${{ github.base_ref }}"
 
@@ -70,9 +68,8 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-latest
     env:
-      account_id: "001736565489"
-      service_name: arn:aws:ecs:us-east-1:${{ env.account_id }}:service/e2e-spring-service-ecs-cluster/e2e-spring-service-ecs-service
-      cluster_name: arn:aws:ecs:us-east-1:${{ env.account_id }}:cluster/e2e-spring-service-ecs-cluster
+      service_name: arn:aws:ecs:us-east-1:001736565489:service/e2e-spring-service-ecs-cluster/e2e-spring-service-ecs-service
+      cluster_name: arn:aws:ecs:us-east-1:001736565489:cluster/e2e-spring-service-ecs-cluster
       CONTAINER_NAME: e2e-spring-service-container
 
       # Get current task definition version

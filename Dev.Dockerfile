@@ -9,6 +9,6 @@ WORKDIR /app
 
 COPY build/libs/spring-e2e-service-${ARTIFACT_VERSION}.jar /app/spring-e2e-service.jar
 
-EXPOSE 8090
+EXPOSE 9090
 
-CMD ["java", "-jar", "/app/cb-bin-service.jar"]
+CMD ["java", "-jar", "/app/spring-e2e-service.jar"]
